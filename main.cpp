@@ -83,11 +83,13 @@ class BankAccount {
         double GetBalance() const;
         void SetAccHolder(string holderName);
         void Deposit(double depositAmount);
-        void Withdraw(double withdrawAmount);
+        virtual void Withdraw(double withdrawAmount);
 
     private:
         string accountNumber;
         string accountHolderName;
+    
+    protected:
         double balance;
 };
 
@@ -180,6 +182,48 @@ void BankAccount::Withdraw(double withdrawAmount){
         balance -= withdrawAmount;
     }
 }
+
+class CheckingAccount : public BankAccount
+{
+private:
+    double transactionFee;
+
+public:
+    CheckingAccount(string accNum, string holderName, double bal) : BankAccount(accNum, holderName, bal), transactionFee(1.0) {}
+    ~CheckingAccount();
+    virtual void Withdraw(double withdrawAmount);
+};
+
+
+CheckingAccount::~CheckingAccount()
+{
+}
+void CheckingAccount::Withdraw(double withdrawAmount){
+    if ((withdrawAmount + (withdrawAmount / 100)) > balance){
+        cout << "Insufficient funds." << endl;
+    } else {
+        balance -= (withdrawAmount + (withdrawAmount / 100));
+    }
+}
+
+class SavingsAccount : public BankAccount
+{
+private:
+    double interestRate;
+public:
+    SavingsAccount(string accNum, string holderName, double bal) : BankAccount(accNum, holderName, bal), interestRate(0.004) {}
+    ~SavingsAccount ();
+    void calculateInterest();
+};
+
+SavingsAccount ::~SavingsAccount ()
+{
+}
+void SavingsAccount ::calculateInterest(){
+    balance += (balance * interestRate);
+}
+
+
 
 // ================= Menu and Account Functions =================
 
@@ -429,6 +473,20 @@ void compareAccounts(vector<BankAccount>& bankVect) {
 // ================= Main Program =================
 int main()
 {
+    vector<BankAccount*> accountList;
+
+    // Make some CheckingAccounts and SavingsAccounts
+    CheckingAccount c1("1", "Alice Checking", 500.0);
+    CheckingAccount c2("2", "Bob Checking", 1000.0);
+
+    SavingsAccount s1("3", "Charlie Savings", 2000.0);
+    SavingsAccount s2("4", "Diana Savings", 3000.0);
+
+    accountList.push_back(&c1);
+    accountList.push_back(&c2);
+    accountList.push_back(&s1);
+    accountList.push_back(&s2);
+
     vector<BankAccount> accounts;
     BankAccount newAccount;
 
