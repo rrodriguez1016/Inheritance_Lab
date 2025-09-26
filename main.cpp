@@ -1,12 +1,13 @@
-// Rene Rodriguez 09/21/25  
-// Lab Activities: Advanced Objects and Classes II
-// Challenge: Enhancing the Bank Account Management System
+// Rene Rodriguez 09/26/25  
+// Lab Activities: Inheritance
+// Challenge: Specialized Bank Accounts
 
 #include<iostream>
 #include<vector>
 #include<string>
 #include<limits>
 #include<stdexcept>
+#include<cmath>
 using namespace std;
 
 // Global variables used for user input
@@ -53,12 +54,12 @@ class BankAccount {
         }
 
         // Static helper functions
-        static BankAccount createAccountFromInput(vector<BankAccount>& bankVect);
+        static BankAccount createAccountFromInput(vector<BankAccount*>& bankVect);
         static void printAccount(const BankAccount& account);
 
         // Rule of Three (copy constructor, destructor, assignment operator)
         BankAccount(const BankAccount& other);   // copy constructor
-        ~BankAccount();                          // destructor
+        virtual ~BankAccount();                          // destructor
         BankAccount& operator=(const BankAccount& other){  // assignment operator
             if(this != &other){ // prevent self-assignment
                 accountNumber = other.accountNumber;
@@ -83,14 +84,13 @@ class BankAccount {
         double GetBalance() const;
         void SetAccHolder(string holderName);
         void Deposit(double depositAmount);
-        virtual void Withdraw(double withdrawAmount);
-
-    private:
-        string accountNumber;
-        string accountHolderName;
+        virtual bool Withdraw(double withdrawAmount);
     
     protected:
         double balance;
+        string accountNumber;
+        string accountHolderName;
+    private:
 };
 
 // ================= BankAccount Definitions =================
@@ -133,14 +133,14 @@ void BankAccount::printAccount(const BankAccount& account){
 }
 
 // Create new account by prompting user for input
-BankAccount BankAccount::createAccountFromInput(vector<BankAccount>& bankVect){
+BankAccount BankAccount::createAccountFromInput(vector<BankAccount*>& bankVect){
     BankAccount currAccount;
     cout << "Enter bank account number." << endl;
     // Make sure account number is unique
     do {
         userInt = getIntInput();
         for (int i = 0; i < bankVect.size(); ++i){
-            currAccount = bankVect.at(i);
+            currAccount = *bankVect.at(i);
             if (currAccount.GetAccNum() == to_string(userInt)){
                 cout << "Account number already exists." << endl
                      << "Enter new number." << endl;
@@ -175,12 +175,15 @@ string BankAccount::GetAccHolder() const { return accountHolderName; }
 double BankAccount::GetBalance() const { return balance; }
 void BankAccount::SetAccHolder(string holderName){ accountHolderName = holderName; }
 void BankAccount::Deposit(double depositAmount){ balance += depositAmount; }
-void BankAccount::Withdraw(double withdrawAmount){
+bool BankAccount::Withdraw(double withdrawAmount){
     if (withdrawAmount > balance){
         cout << "Insufficient funds." << endl;
+        return true;
     } else {
         balance -= withdrawAmount;
+        return false;
     }
+
 }
 
 class CheckingAccount : public BankAccount
@@ -189,20 +192,26 @@ private:
     double transactionFee;
 
 public:
+    CheckingAccount() : BankAccount(), transactionFee(1.0) {}
     CheckingAccount(string accNum, string holderName, double bal) : BankAccount(accNum, holderName, bal), transactionFee(1.0) {}
-    ~CheckingAccount();
-    virtual void Withdraw(double withdrawAmount);
+    ~CheckingAccount() override;
+    virtual bool Withdraw(double withdrawAmount);
+    double GetFee(){
+        return transactionFee;
+    }
 };
 
 
 CheckingAccount::~CheckingAccount()
 {
 }
-void CheckingAccount::Withdraw(double withdrawAmount){
-    if ((withdrawAmount + (withdrawAmount / 100)) > balance){
+bool CheckingAccount::Withdraw(double withdrawAmount){
+    if ((withdrawAmount + (withdrawAmount * (transactionFee / 100))) > balance){
         cout << "Insufficient funds." << endl;
+        return true;
     } else {
-        balance -= (withdrawAmount + (withdrawAmount / 100));
+        balance -= (floor((withdrawAmount + (withdrawAmount / 100)) * 100.0) / 100.0);
+        return false;
     }
 }
 
@@ -211,8 +220,9 @@ class SavingsAccount : public BankAccount
 private:
     double interestRate;
 public:
+    SavingsAccount() : BankAccount(), interestRate(0.004) {}
     SavingsAccount(string accNum, string holderName, double bal) : BankAccount(accNum, holderName, bal), interestRate(0.004) {}
-    ~SavingsAccount ();
+    ~SavingsAccount() override;
     void calculateInterest();
 };
 
@@ -230,14 +240,16 @@ void SavingsAccount ::calculateInterest(){
 // Show menu options
 void promptUser(){
     cout << "What would you like to do?" << endl;
-    cout << "\t 1. Create account" << endl;
-    cout << "\t 2. List all accounts" << endl;
-    cout << "\t 3. Change account holder name" << endl;
-    cout << "\t 4. Deposit" << endl;
-    cout << "\t 5. Withdraw" << endl;
-    cout << "\t 6. Create a copy of an account" << endl;
-    cout << "\t 7. Delete Account" << endl;
-    cout << "\t 8. Compare Accounts" << endl;
+    cout << "\t 1. Create checking account" << endl;
+    cout << "\t 2. Create savings account" << endl;
+    cout << "\t 3. List all accounts" << endl;
+    cout << "\t 4. Change account holder name" << endl;
+    cout << "\t 5. Deposit" << endl;
+    cout << "\t 6. Withdraw" << endl;
+    cout << "\t 7. Create a copy of an account" << endl;
+    cout << "\t 8. Delete Account" << endl;
+    cout << "\t 9. Compare Accounts" << endl;
+    cout << "\t 10. Calculate Interest" << endl;
     cout << "\t 0. Quit" << endl;
 }
 
@@ -261,18 +273,18 @@ double getdoubleInput(){
 }
 
 // List all accounts
-void listAccounts(vector<BankAccount>& bankVect){
+void listAccounts(vector<BankAccount*>& bankVect){
     if (bankVect.empty()){
         cout << "No accounts" << endl;
     } else {
         for (int i = 0; i < bankVect.size(); ++i){
-            BankAccount::printAccount(bankVect.at(i));
+            BankAccount::printAccount(*bankVect.at(i));
         }
     }
 }
 
 // Change account holder name
-void changeAccountName(vector<BankAccount>& bankVect){
+void changeAccountName(vector<BankAccount*>& bankVect){
     bool notFound = true;
     if (bankVect.empty()){
         cout << "No accounts available." << endl;
@@ -281,12 +293,12 @@ void changeAccountName(vector<BankAccount>& bankVect){
             cout << "Enter Account Number you would like to change name of." << endl;
             userInt = getIntInput();
             for (int i = 0; i < bankVect.size(); ++i){
-                if(bankVect[i].GetAccNum() == to_string(userInt)){
+                if(bankVect[i]->GetAccNum() == to_string(userInt)){
                     notFound = false;
                     cout << "Enter new name" << endl;
                     cin.ignore(numeric_limits<streamsize>::max(), '\n');
                     getline(cin, userString);
-                    bankVect[i].SetAccHolder(userString);
+                    bankVect[i]->SetAccHolder(userString);
                     break;
                 }
             }
@@ -298,7 +310,7 @@ void changeAccountName(vector<BankAccount>& bankVect){
 }
 
 // Deposit money into an account
-void depositAmount(vector<BankAccount>& bankVect){
+void depositAmount(vector<BankAccount*>& bankVect){
     bool notFound = true;
     if(bankVect.empty()){
         cout << "No accounts available." << endl;
@@ -307,11 +319,11 @@ void depositAmount(vector<BankAccount>& bankVect){
             cout << "Enter Account Number you would like to deposit money." << endl;
             userInt = getIntInput();
             for (int i = 0; i < bankVect.size(); ++i){
-                if(bankVect[i].GetAccNum() == to_string(userInt)){
+                if(bankVect[i]->GetAccNum() == to_string(userInt)){
                     notFound = false;
                     cout << "Enter deposit amount" << endl;
                     userDouble = getdoubleInput();
-                    bankVect[i] += userDouble;  // uses overloaded +=
+                    *bankVect[i] += userDouble;  // uses overloaded +=
                     break;
                 }
             }
@@ -323,7 +335,7 @@ void depositAmount(vector<BankAccount>& bankVect){
 }
 
 // Withdraw money from an account
-void withdrawAmount(vector<BankAccount>& bankVect){
+void withdrawAmount(vector<BankAccount*>& bankVect){
     bool notFound = true;
     bool tooMuch = true;
     if(bankVect.empty()){
@@ -333,16 +345,11 @@ void withdrawAmount(vector<BankAccount>& bankVect){
             cout << "Enter Account Number you would like to withdraw money from." << endl;
             userInt = getIntInput();
             for (int i = 0; i < bankVect.size(); ++i){
-                if(bankVect[i].GetAccNum() == to_string(userInt)){
+                if(bankVect[i]->GetAccNum() == to_string(userInt)){
                     notFound = false;
                     cout << "Enter withdrawal amount" << endl;
                     userDouble = getdoubleInput();
-                    if (bankVect[i].GetBalance() >= userDouble){
-                        bankVect[i] -= userDouble;  // uses overloaded -=
-                        tooMuch = false;
-                    } else {
-                        cout << "Insufficient funds." << endl;
-                    }
+                    tooMuch = bankVect[i]->Withdraw(userDouble);
                     break;
                 }
             }
@@ -354,7 +361,7 @@ void withdrawAmount(vector<BankAccount>& bankVect){
 }
 
 // Create a duplicate of an existing account
-void createCopy(vector<BankAccount>& bankVect) {
+void createCopy(vector<BankAccount*>& bankVect) {
     bool notFound = true;
     if (bankVect.empty()){
         cout << "No accounts" << endl;
@@ -363,9 +370,9 @@ void createCopy(vector<BankAccount>& bankVect) {
             cout << "Enter account number of account you want to copy." << endl;
             cin >> userString;
             for (int i = 0; i < bankVect.size(); i++){
-                if (bankVect[i].GetAccNum() == userString){
+                if (bankVect[i]->GetAccNum() == userString){
                     notFound = false;
-                    BankAccount newAccount = bankVect[i]; // copy constructor
+                    BankAccount* newAccount = bankVect[i]; // copy constructor
                     bankVect.push_back(newAccount);
                     cout << "Account copied successfully." << endl;
                     break;
@@ -379,7 +386,7 @@ void createCopy(vector<BankAccount>& bankVect) {
 }
 
 // Delete an existing account
-void deleteAccount(vector<BankAccount>& bankVect){
+void deleteAccount(vector<BankAccount*>& bankVect){
     bool notFound = true;
     if (bankVect.empty()){
         cout << "No accounts" << endl;
@@ -388,7 +395,7 @@ void deleteAccount(vector<BankAccount>& bankVect){
             cout << "Enter account number of account you want to delete." << endl;
             cin >> userString;
             for (int i = 0; i < bankVect.size(); i++){
-                if (bankVect[i].GetAccNum() == userString){
+                if (bankVect[i]->GetAccNum() == userString){
                     notFound = false;
                     bankVect.erase(bankVect.begin() + i);
                     cout << "Account deleted successfully." << endl;
@@ -402,10 +409,10 @@ void deleteAccount(vector<BankAccount>& bankVect){
     }
 }
 // Compare two accounts using overloaded comparison operators
-void compareAccounts(vector<BankAccount>& bankVect) {
+void compareAccounts(vector<BankAccount*>& bankVect) {
     bool notFound = true;
-    BankAccount account1;  // first account to compare
-    BankAccount account2;  // second account to compare
+    BankAccount* account1;  // first account to compare
+    BankAccount* account2;  // second account to compare
 
     // Check if there are at least 2 accounts in the system
     if (bankVect.empty() || bankVect.size() < 2){
@@ -421,7 +428,7 @@ void compareAccounts(vector<BankAccount>& bankVect) {
             cin >> userString;
             for (int i = 0; i < bankVect.size(); i++){
                 // Search for account number entered by user
-                if (bankVect[i].GetAccNum() == userString){
+                if (bankVect[i]->GetAccNum() == userString){
                     notFound = false;
                     account1 = bankVect[i];   // copy account into account1
                     break;
@@ -440,7 +447,7 @@ void compareAccounts(vector<BankAccount>& bankVect) {
             cout << "Enter account number of second account you want to compare." << endl;
             cin >> userString;
             for (int i = 0; i < bankVect.size(); i++){
-                if (bankVect[i].GetAccNum() == userString){
+                if (bankVect[i]->GetAccNum() == userString){
                     notFound = false;
                     account2 = bankVect[i];   // copy account into account2
                     break;
@@ -454,17 +461,17 @@ void compareAccounts(vector<BankAccount>& bankVect) {
         // ================= Compare Accounts =================
         // Uses my overloaded operators:
         //   operator> compares balances
-        if (account1 > account2) {
-            cout << "Account Number: " << account1.GetAccNum() 
+        if (*account1 > *account2) {
+            cout << "Account Number: " << account1->GetAccNum() 
                  << " has a greater balance than Account Number: " 
-                 << account2.GetAccNum() << endl;
-        } else if (account2 > account1) {
-            cout << "Account Number: " << account2.GetAccNum() 
+                 << account2->GetAccNum() << endl;
+        } else if (*account2 > *account1) {
+            cout << "Account Number: " << account2->GetAccNum() 
                  << " has a greater balance than Account Number: " 
-                 << account1.GetAccNum() << endl;
+                 << account1->GetAccNum() << endl;
         } else {
-            cout << "Account Number: " << account1.GetAccNum() 
-                 << " and Account Number: " << account2.GetAccNum() 
+            cout << "Account Number: " << account1->GetAccNum() 
+                 << " and Account Number: " << account2->GetAccNum() 
                  << " have equal balances." << endl;
         }
     }
@@ -489,36 +496,53 @@ int main()
 
     vector<BankAccount> accounts;
     BankAccount newAccount;
+    CheckingAccount* newCheckingAccount;
+    SavingsAccount* newSavingsAccount;
 
     // Main menu loop
     while (true) {
         promptUser();
         userInt = getIntInput();
         switch (userInt) {
-            case 1: // Create account
-                newAccount = BankAccount::createAccountFromInput(accounts);
-                accounts.push_back(newAccount);
+            case 1: // Create checking account
+                newAccount = BankAccount::createAccountFromInput(accountList);
+                newCheckingAccount = new CheckingAccount(newAccount.GetAccNum(), newAccount.GetAccHolder(), 0.0);
+                accountList.push_back(newCheckingAccount);
                 break;
-            case 2: // List accounts
-                listAccounts(accounts);
+            case 2: // Create savings account
+                newAccount = BankAccount::createAccountFromInput(accountList);
+                newSavingsAccount = new SavingsAccount(newAccount.GetAccNum(), newAccount.GetAccHolder(), 0.0);
+                accountList.push_back(newSavingsAccount);
                 break;
-            case 3: // Change account name
-                changeAccountName(accounts);
+            case 3: // List accounts
+                listAccounts(accountList);
                 break;
-            case 4: // Deposit
-                depositAmount(accounts);
+            case 4: // Change account name
+                changeAccountName(accountList);
                 break;
-            case 5: // Withdraw
-                withdrawAmount(accounts);
+            case 5: // Deposit
+                depositAmount(accountList);
                 break;
-            case 6: // Copy account
-                createCopy(accounts);
+            case 6: // Withdraw
+                withdrawAmount(accountList);
                 break;
-            case 7: // Delete account
-                deleteAccount(accounts);
+            case 7: // Create a copy
+                createCopy(accountList);
                 break;
-            case 8: //Compare accounts
-                compareAccounts(accounts);
+            case 8: // Delete accounts
+                deleteAccount(accountList);
+                break;
+            case 9: // Compare accounts
+                compareAccounts(accountList);
+                break;
+            case 10: // Calculate interest
+                for (auto acc : accountList) {
+                    SavingsAccount* savings = dynamic_cast<SavingsAccount*>(acc);
+                    if (savings != nullptr) {
+                        savings->calculateInterest();
+                        cout << "Interest applied to account " << savings->GetAccNum() << endl;
+                    }
+                }
                 break;
             case 0: // Exit
                 cout << "Goodbye!" << endl;
